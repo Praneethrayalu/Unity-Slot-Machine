@@ -4,6 +4,7 @@ using SlotGame.Data;
 using SlotGame.Gameplay;
 using TMPro;
 using UnityEngine;
+using SlotGame.Utilities;
 using UnityEngine.UI;
 
 namespace SlotGame.UI
@@ -24,9 +25,11 @@ namespace SlotGame.UI
 
         [Header("Coins per tier")]
         [SerializeField] private int bigWinCoins = 35;
+        [SerializeField] private int megaWinCoins = 55;
         [SerializeField] private int jackpotCoins = 80;
 
         private long _payout;
+        private float _titlePunchTime;
 
         /// <summary>Raised when the player dismisses the popup.</summary>
         public event Action Dismissed;
@@ -47,7 +50,8 @@ namespace SlotGame.UI
         public void Show(SpinResult spin, WinTier tier, SymbolDatabase symbols, float countDuration)
         {
             _payout = spin.Win.Payout;
-            titleLabel.text = tier == WinTier.Jackpot ? "JACKPOT!" : "BIG WIN!";
+            titleLabel.text = TitleFor(tier);
+            _titlePunchTime = 0f;
 
             string detail = $"x{spin.Win.Multiplier} on a {spin.Bet:N0} bet";
             if (spin.Win.IncludesWild)
@@ -74,7 +78,32 @@ namespace SlotGame.UI
             amountCounter.AnimateTo(_payout, countDuration);
 
             coinBurst.Clear();
-            coinBurst.Burst(tier == WinTier.Jackpot ? jackpotCoins : bigWinCoins);
+            coinBurst.Burst(tier == WinTier.Jackpot ? jackpotCoins : tier == WinTier.Mega ? megaWinCoins : bigWinCoins);
+        }
+
+        private static string TitleFor(WinTier tier)
+        {
+            switch (tier)
+            {
+                case WinTier.Jackpot: return "JACKPOT!";
+                case WinTier.Mega: return "MEGA WIN!";
+                default: return "BIG WIN!";
+            }
+        }
+
+        private void Update()
+        {
+            if (!IsOpen)
+            {
+                return;
+            }
+
+            // Title "slam": overshoots from 2.2x down to 1x in ~0.4 s, then breathes gently.
+            _titlePunchTime += Time.unscaledDeltaTime;
+            float punch = _titlePunchTime < 0.4f
+                ? Mathf.LerpUnclamped(2.2f, 1f, Easing.OutBack(_titlePunchTime / 0.4f))
+                : 1f + 0.06f * Mathf.Sin((_titlePunchTime - 0.4f) * 5f);
+            titleLabel.rectTransform.localScale = Vector3.one * punch;
         }
 
         public override void Close()

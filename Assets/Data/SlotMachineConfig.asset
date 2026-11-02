@@ -21,7 +21,8 @@ MonoBehaviour:
   reelStopStagger: 0.32
   anticipationTime: 1.4
   quickStopStagger: 0.07
-  bigWinMultiplier: 10
+  bigWinMultiplier: 5
+  megaWinMultiplier: 10
   jackpotMultiplier: 100
   smallWinPresentationTime: 1.2
   bigWinPresentationTime: 3.2

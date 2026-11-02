@@ -37,7 +37,10 @@ namespace SlotGame.Data
 
         [Header("Celebration")]
         [Tooltip("Wins at or above this multiplier show the BIG WIN popup.")]
-        [Min(1)] [SerializeField] private int bigWinMultiplier = 10;
+        [Min(1)] [SerializeField] private int bigWinMultiplier = 5;
+
+        [Tooltip("Wins at or above this multiplier show the MEGA WIN popup.")]
+        [Min(1)] [SerializeField] private int megaWinMultiplier = 10;
 
         [Tooltip("Wins at or above this multiplier (or a line of wilds) are a JACKPOT.")]
         [Min(1)] [SerializeField] private int jackpotMultiplier = 100;
@@ -62,6 +65,7 @@ namespace SlotGame.Data
         public float AnticipationTime => anticipationTime;
         public float QuickStopStagger => quickStopStagger;
         public int BigWinMultiplier => bigWinMultiplier;
+        public int MegaWinMultiplier => megaWinMultiplier;
         public int JackpotMultiplier => jackpotMultiplier;
         public float SmallWinPresentationTime => smallWinPresentationTime;
         public float BigWinPresentationTime => bigWinPresentationTime;

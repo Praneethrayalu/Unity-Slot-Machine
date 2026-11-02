@@ -65,6 +65,10 @@ namespace SlotGame.Audio
                 case WinTier.Big:
                     audioManager.Play(SoundId.WinBig);
                     break;
+                case WinTier.Mega:
+                    audioManager.Play(SoundId.WinBig, 1.12f);
+                    audioManager.Play(SoundId.CoinTick, 0.8f);
+                    break;
                 case WinTier.Jackpot:
                     audioManager.Play(SoundId.Jackpot);
                     break;
