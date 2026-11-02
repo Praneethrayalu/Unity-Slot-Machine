@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes">
+    <meta name="description" content="Lucky 7 Slots: a Unity slot machine with smooth reels, secure RNG, paytable, free spins and wilds.">
+    <title>{{{ PRODUCT_NAME }}}</title>
+    <link rel="icon" type="image/png" href="TemplateData/favicon.png">
+    <link rel="stylesheet" href="TemplateData/style.css">
+  </head>
+  <body>
+    <div id="stage">
+      <canvas id="unity-canvas" tabindex="-1"></canvas>
+      <div id="loader">
+        <div class="title">LUCKY <span>7</span> SLOTS</div>
+        <div class="bar"><div class="fill" id="progress"></div></div>
+        <div class="hint" id="loader-text">Loading&hellip;</div>
+      </div>
+    </div>
+    <div id="rotate">Turn your phone sideways for the best view</div>
+    <div id="error" role="alert"></div>
+    <script>
+      // Keep the game at a fixed 16:9 aspect, letterboxed inside any window or phone screen.
+      var stage = document.getElementById("stage");
+      function fit() {
+        var w = window.innerWidth, h = window.innerHeight, aspect = 16 / 9;
+        var width = Math.min(w, h * aspect), height = width / aspect;
+        stage.style.width = Math.floor(width) + "px";
+        stage.style.height = Math.floor(height) + "px";
+        document.body.classList.toggle("portrait", h > w);
+      }
+      window.addEventListener("resize", fit);
+      fit();
+
+      var canvas = document.getElementById("unity-canvas");
+      var config = {
+        dataUrl: "Build/{{{ DATA_FILENAME }}}",
+        frameworkUrl: "Build/{{{ FRAMEWORK_FILENAME }}}",
+#if USE_WASM
+        codeUrl: "Build/{{{ CODE_FILENAME }}}",
+#endif
+#if MEMORY_FILENAME
+        memoryUrl: "Build/{{{ MEMORY_FILENAME }}}",
+#endif
+#if SYMBOLS_FILENAME
+        symbolsUrl: "Build/{{{ SYMBOLS_FILENAME }}}",
+#endif
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
+        productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
+        productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+        showBanner: function (message, type) {
+          if (type === "error") {
+            var box = document.getElementById("error");
+            box.textContent = message;
+            box.style.display = "block";
+          }
+          console.log(message);
+        },
+      };
+
+      // Sharp rendering on high-density (retina / phone) screens, capped to protect frame rate.
+      config.devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+
+      var script = document.createElement("script");
+      script.src = "Build/{{{ LOADER_FILENAME }}}";
+      script.onload = function () {
+        createUnityInstance(canvas, config, function (progress) {
+          document.getElementById("progress").style.width = Math.round(progress * 100) + "%";
+        }).then(function () {
+          document.getElementById("loader").style.display = "none";
+          canvas.focus();
+        }).catch(function (message) {
+          document.getElementById("loader-text").textContent = "Could not start: " + message;
+        });
+      };
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>
