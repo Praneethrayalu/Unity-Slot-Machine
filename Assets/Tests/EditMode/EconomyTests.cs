@@ -60,6 +60,23 @@ namespace SlotGame.Tests
         }
 
         [Test]
+        public void BetSelector_SelectHighestAffordable_PicksLargestCoveredBet()
+        {
+            var bets = new BetSelector(new[] { 10, 20, 50, 100 });
+
+            Assert.IsTrue(bets.SelectHighestAffordable(75));
+            Assert.AreEqual(50, bets.CurrentBet);
+
+            Assert.IsFalse(bets.SelectHighestAffordable(75), "Already at max affordable: no change.");
+            Assert.IsTrue(bets.SelectHighestAffordable(1000));
+            Assert.AreEqual(100, bets.CurrentBet);
+
+            Assert.IsFalse(bets.SelectHighestAffordable(5), "Nothing affordable: selection is kept.");
+            Assert.AreEqual(100, bets.CurrentBet);
+            Assert.AreEqual(-1, bets.HighestAffordableIndex(5));
+        }
+
+        [Test]
         public void BetSelector_RejectsInvalidOptions()
         {
             Assert.Throws<ArgumentException>(() => new BetSelector(new int[0]));

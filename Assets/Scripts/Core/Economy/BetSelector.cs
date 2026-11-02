@@ -77,6 +77,37 @@ namespace SlotGame.Core.Economy
             return false;
         }
 
+        /// <summary>
+        /// MAX BET: selects the largest option the player can afford.
+        /// Returns false when nothing changed (already at that bet, or no option is affordable).
+        /// </summary>
+        public bool SelectHighestAffordable(long balance)
+        {
+            for (int i = _options.Length - 1; i >= 0; i--)
+            {
+                if (_options[i] <= balance)
+                {
+                    return Select(i);
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>Index of the largest affordable option, or -1 when none is affordable.</summary>
+        public int HighestAffordableIndex(long balance)
+        {
+            for (int i = _options.Length - 1; i >= 0; i--)
+            {
+                if (_options[i] <= balance)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
         public bool Select(int index)
         {
             if (index < 0 || index >= _options.Length || index == Index)
