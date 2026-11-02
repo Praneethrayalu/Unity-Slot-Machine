@@ -248,6 +248,12 @@ namespace SlotGame.Gameplay
             return _state == SlotState.Idle && FreeSpinsRemaining == 0 && _engine.Bets.Decrease();
         }
 
+        /// <summary>MAX BET: jumps to the largest bet the current balance covers.</summary>
+        public bool MaxBet()
+        {
+            return _state == SlotState.Idle && FreeSpinsRemaining == 0 && _engine.Bets.SelectHighestAffordable(_engine.Wallet.Balance);
+        }
+
         /// <summary>Tops the wallet back up (offered by the UI when credits run out).</summary>
         public void RefillCredits()
         {
@@ -265,6 +271,11 @@ namespace SlotGame.Gameplay
             if (payTable.IsWild(win.SymbolId) || win.Multiplier >= config.JackpotMultiplier)
             {
                 return WinTier.Jackpot;
+            }
+
+            if (win.Multiplier >= config.MegaWinMultiplier)
+            {
+                return WinTier.Mega;
             }
 
             return win.Multiplier >= config.BigWinMultiplier ? WinTier.Big : WinTier.Small;
@@ -385,6 +396,9 @@ namespace SlotGame.Gameplay
             {
                 case WinTier.Jackpot:
                     duration = config.JackpotPresentationTime;
+                    break;
+                case WinTier.Mega:
+                    duration = (config.BigWinPresentationTime + config.JackpotPresentationTime) * 0.5f;
                     break;
                 case WinTier.Big:
                     duration = config.BigWinPresentationTime;
