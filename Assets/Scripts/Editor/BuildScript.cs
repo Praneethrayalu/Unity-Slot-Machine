@@ -90,6 +90,26 @@ namespace SlotGame.Editor
             BuildWebGL();
         }
 
+        /// <summary>
+        /// Sets the WebGL "Code Optimization" option (Build Settings window) when this editor exposes it.
+        /// Done by reflection because the API lives in the WebGL module, which may not be installed.
+        /// </summary>
+        private static void SetWasmCodeOptimization(string value)
+        {
+            Type settings = AppDomain.CurrentDomain.GetAssemblies()
+                .Select(a => a.GetType("UnityEditor.WebGL.UserBuildSettings", false))
+                .FirstOrDefault(t => t != null);
+            var property = settings?.GetProperty("codeOptimization", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            if (property == null || !Enum.IsDefined(property.PropertyType, value))
+            {
+                Debug.LogWarning($"[BuildScript] WebGL code optimization '{value}' is not available in this editor.");
+                return;
+            }
+
+            property.SetValue(null, Enum.Parse(property.PropertyType, value));
+            Debug.Log($"[BuildScript] WebGL code optimization: {value}.");
+        }
+
         /// <summary>Player settings tuned for a small, fast-loading WebGL build that works on any static host.</summary>
         public static void ApplyPlayerSettings()
         {
@@ -105,16 +125,19 @@ namespace SlotGame.Editor
 
             PlayerSettings.WebGL.template = "PROJECT:SlotMachine";
 
-            // Gzip + decompression fallback: small downloads that also run on hosts that do not
-            // send Content-Encoding headers (GitHub Pages, simple static servers).
-            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
+            // Brotli + decompression fallback: the smallest download, and it still runs on hosts that
+            // do not send Content-Encoding headers (GitHub Pages, simple static servers).
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
             PlayerSettings.WebGL.decompressionFallback = true;
             PlayerSettings.WebGL.dataCaching = true;
             PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.ExplicitlyThrownExceptionsOnly;
             PlayerSettings.WebGL.nameFilesAsHashes = false;
 
+            // Size over build speed: a lean player loads fast on phones.
             PlayerSettings.stripEngineCode = true;
-            PlayerSettings.SetManagedStrippingLevel(BuildTargetGroup.WebGL, ManagedStrippingLevel.Low);
+            PlayerSettings.SetManagedStrippingLevel(BuildTargetGroup.WebGL, ManagedStrippingLevel.Medium);
+            PlayerSettings.SetIl2CppCodeGeneration(UnityEditor.Build.NamedBuildTarget.WebGL, UnityEditor.Build.Il2CppCodeGeneration.OptimizeSize);
+            SetWasmCodeOptimization("DiskSizeLTO");
             PlayerSettings.SetApiCompatibilityLevel(BuildTargetGroup.WebGL, ApiCompatibilityLevel.NET_Standard);
             AssetDatabase.SaveAssets();
         }
