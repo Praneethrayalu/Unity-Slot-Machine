@@ -68,6 +68,9 @@ namespace SlotGame.Editor
 
             ConfigureSingleSprite($"{EffectsArtFolder}/coin.png", Vector4.zero, true, 256);
             ConfigureSingleSprite($"{EffectsArtFolder}/soft-glow.png", Vector4.zero, true, 256);
+            ConfigureSingleSprite($"{EffectsArtFolder}/bulb.png", Vector4.zero, true, 128);
+            ConfigureSingleSprite($"{EffectsArtFolder}/rays.png", Vector4.zero, false, 512);
+            ConfigureSingleSprite($"{EffectsArtFolder}/sparkle.png", Vector4.zero, true, 128);
             ConfigureSingleSprite($"{EffectsArtFolder}/payline.png", new Vector4(24, 0, 24, 0), true, 256);
             ConfigureSingleSprite($"{EffectsArtFolder}/rounded-rect.png", new Vector4(20, 20, 20, 20), true, 64);
             ConfigureSingleSprite($"{EffectsArtFolder}/glow-frame.png", new Vector4(40, 40, 40, 40), true, 128);
@@ -261,6 +264,15 @@ namespace SlotGame.Editor
                 AssetDatabase.SaveAssets();
             }
 
+            // Ship a STATIC atlas: exactly the glyphs baked above, no runtime rasterisation.
+            if (font.atlasPopulationMode != AtlasPopulationMode.Static)
+            {
+                font.TryAddCharacters(" ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,:;!?+-=x×#%()/·'\"…");
+                font.atlasPopulationMode = AtlasPopulationMode.Static;
+                EditorUtility.SetDirty(font);
+                AssetDatabase.SaveAssets();
+            }
+
             var outline = new Material(font.material) { name = "LilitaOne SDF - Outline" };
             outline.EnableKeyword(ShaderUtilities.Keyword_Outline);
             outline.SetFloat(ShaderUtilities.ID_OutlineWidth, 0.18f);
@@ -283,6 +295,29 @@ namespace SlotGame.Editor
             glow = CreateOrReplaceAsset(glow, $"{FontFolder}/LilitaOne SDF - Glow.mat");
 
             return new FontSet { Font = font, Outline = outline, Glow = glow };
+        }
+
+        /// <summary>
+        /// Re-reads the font and its materials from disk. Asset imports between creating the fonts and
+        /// building the scene can invalidate the in-memory references (they turn into "fake null"
+        /// objects), and TextMesh Pro then silently falls back to its default font.
+        /// </summary>
+        private static FontSet ReloadFonts()
+        {
+            var fonts = new FontSet
+            {
+                Font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>($"{FontFolder}/LilitaOne SDF.asset"),
+                Outline = AssetDatabase.LoadAssetAtPath<Material>($"{FontFolder}/LilitaOne SDF - Outline.mat"),
+                Glow = AssetDatabase.LoadAssetAtPath<Material>($"{FontFolder}/LilitaOne SDF - Glow.mat"),
+            };
+
+            if (fonts.Font == null || fonts.Outline == null || fonts.Glow == null)
+            {
+                throw new System.InvalidOperationException("LilitaOne font assets are missing; run Rebuild Project Assets again.");
+            }
+
+            Debug.Log($"[SlotProjectBuilder] Font: {fonts.Font.name} ({fonts.Font.atlasPopulationMode}, {fonts.Font.characterTable.Count} characters).");
+            return fonts;
         }
 
         // ---------------------------------------------------------------- Game data

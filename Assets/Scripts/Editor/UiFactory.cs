@@ -76,6 +76,12 @@ namespace SlotGame.Editor
             label.overflowMode = TextOverflowModes.Overflow;
             label.raycastTarget = false;
             label.enableAutoSizing = false;
+
+            // Also write the serialized fields directly. In batch mode TMP's default-font
+            // initialisation could override the property setters, so every label silently fell
+            // back to LiberationSans; the builder now verifies this before saving the scene.
+            EditorBindings.Set(label, "m_fontAsset", font);
+            EditorBindings.Set(label, "m_sharedMaterial", material);
             return label;
         }
 

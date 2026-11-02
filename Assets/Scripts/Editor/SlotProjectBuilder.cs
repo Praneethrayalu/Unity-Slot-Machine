@@ -50,7 +50,7 @@ namespace SlotGame.Editor
                 ConfigureAudio();
 
                 EditorUtility.DisplayProgressBar("Slot Game", "Creating fonts", 0.35f);
-                FontSet fonts = CreateFonts();
+                CreateFonts();
 
                 EditorUtility.DisplayProgressBar("Slot Game", "Creating game data", 0.45f);
                 GameData data = CreateGameData();
@@ -59,7 +59,7 @@ namespace SlotGame.Editor
                 AnimationSet animations = CreateAnimations();
 
                 EditorUtility.DisplayProgressBar("Slot Game", "Building scene and prefabs", 0.75f);
-                BuildScene(data, fonts, animations);
+                BuildScene(data, ReloadFonts(), animations);
 
                 AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
