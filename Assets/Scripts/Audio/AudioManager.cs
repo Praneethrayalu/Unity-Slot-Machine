@@ -60,6 +60,7 @@ namespace SlotGame.Audio
             voice.volume = entry.Volume * volumeScale * masterVolume;
             voice.pitch = pitch * (1f + UnityEngine.Random.Range(-entry.PitchVariance, entry.PitchVariance));
             voice.Play();
+            LogForCapture($"play {id} {voice.pitch:F3} {voice.volume:F3}");
         }
 
         /// <summary>Starts a looping sound (no-op when it is already playing).</summary>
@@ -82,6 +83,7 @@ namespace SlotGame.Audio
             if (!source.isPlaying)
             {
                 source.Play();
+                LogForCapture($"loop {id} {source.volume:F3}");
             }
         }
 
@@ -90,7 +92,20 @@ namespace SlotGame.Audio
         {
             if (_loops.TryGetValue(id, out AudioSource source) && source.isPlaying)
             {
+                LogForCapture($"stop {id} {fadeOut:F3}");
                 StartCoroutine(FadeOutRoutine(source, fadeOut));
+            }
+        }
+
+        /// <summary>
+        /// In recording mode (<c>?capture=</c>, fixed timestep) every sound event is logged with its
+        /// game time, so a silent headless screen recording can get a frame-accurate soundtrack.
+        /// </summary>
+        private void LogForCapture(string message)
+        {
+            if (Time.captureFramerate > 0 && !_muted)
+            {
+                Debug.Log($"[Snd] {Time.time:F4} {message}");
             }
         }
 
