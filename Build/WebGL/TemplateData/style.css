@@ -1,0 +1,100 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: radial-gradient(ellipse at center, #2b1650 0%, #0d0620 70%);
+  font-family: "Trebuchet MS", Arial, sans-serif;
+  color: #fff3d6;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#stage {
+  position: relative;
+  box-shadow: 0 0 60px rgba(255, 196, 64, 0.25);
+}
+
+#unity-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #140a2a;
+  outline: none;
+}
+
+#loader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: linear-gradient(180deg, #2a1554 0%, #140a2a 100%);
+}
+
+#loader .title {
+  font-size: clamp(28px, 6vw, 64px);
+  font-weight: bold;
+  letter-spacing: 3px;
+  color: #ffd54a;
+  text-shadow: 0 4px 0 #6b2a00, 0 0 24px rgba(255, 200, 60, 0.6);
+}
+
+#loader .title span {
+  color: #ff5146;
+}
+
+#loader .bar {
+  width: min(60%, 520px);
+  height: 18px;
+  border: 3px solid #ffd54a;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+#loader .fill {
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #ff9d00, #ffe066);
+  transition: width 0.2s ease-out;
+}
+
+#loader .hint {
+  font-size: 16px;
+  opacity: 0.8;
+}
+
+#rotate {
+  display: none;
+  position: fixed;
+  bottom: 18px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 15px;
+  opacity: 0.85;
+}
+
+body.portrait #rotate {
+  display: block;
+}
+
+#error {
+  display: none;
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: #b3261e;
+  color: #fff;
+}
