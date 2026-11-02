@@ -48,6 +48,11 @@ namespace SlotGame.Editor
                 LoadSprite("Assets/Art/Backgrounds/bg_gradient.png"), Color.white, 0, 0, 0, 0);
             background.rectTransform.Stretch();
 
+            // Living backdrop: rotating rays behind the cabinet plus drifting bokeh orbs.
+            Image rays = CreateImage("Rays", canvas.transform, LoadSprite($"{EffectsArtFolder}/rays.png"),
+                new Color(1f, 0.85f, 0.5f, 0.3f), MachineX, 160, 2600, 2600);
+            RectTransform orbLayer = Create("Bokeh", canvas.transform).Rect().Stretch();
+
             // ---- Systems (non-visual) ----
             var systems = new GameObject("Systems");
             var controller = systems.AddComponent<SlotMachineController>();
@@ -69,6 +74,7 @@ namespace SlotGame.Editor
             PaytablePanel paytable = BuildPaytablePanel(popupRoot, fonts, animations, rowPrefab);
             ConfirmDialog confirm = BuildConfirmDialog(popupRoot, fonts, animations);
             WinPopup winPopup = BuildWinPopup(popupRoot, fonts, animations);
+            IntroScreen intro = BuildIntroScreen(popupRoot, fonts);
 
             // ---- Wiring ----
             Set(controller, "symbolDatabase", data.Symbols);
@@ -88,6 +94,28 @@ namespace SlotGame.Editor
 
             Set(machine.Lever, "controller", controller);
 
+            var backgroundFx = systems.AddComponent<BackgroundFx>();
+            Set(backgroundFx, "controller", controller);
+            Set(backgroundFx, "rays", rays.rectTransform);
+            Set(backgroundFx, "raysImage", rays);
+            Set(backgroundFx, "orbLayer", orbLayer);
+            Set(backgroundFx, "orbSprite", LoadSprite($"{EffectsArtFolder}/soft-glow.png"));
+
+            Set(machine.WinBanner, "controller", controller);
+
+            var marquee = systems.AddComponent<MarqueeLights>();
+            Set(marquee, "controller", controller);
+            SetArray(marquee, "bulbs", machine.MarqueeBulbs);
+
+            var shake = systems.AddComponent<ScreenShake>();
+            Set(shake, "controller", controller);
+            SetArray(shake, "targets", machine.Root.GetComponent<RectTransform>(), hud.Root.GetComponent<RectTransform>());
+
+            var sparkles = machine.SparkleArea.gameObject.AddComponent<SparkleBurst>();
+            Set(sparkles, "controller", controller);
+            Set(sparkles, "area", machine.SparkleArea);
+            Set(sparkles, "sparkleSprite", LoadSprite($"{EffectsArtFolder}/sparkle.png"));
+
             var ui = systems.AddComponent<UIManager>();
             Set(ui, "controller", controller);
             Set(ui, "audioManager", audioManager);
@@ -103,6 +131,8 @@ namespace SlotGame.Editor
             Set(ui, "betUpButton", hud.BetUp);
             Set(ui, "betDownButton", hud.BetDown);
             Set(ui, "autoSpinButton", hud.Auto);
+            Set(ui, "maxBetButton", hud.MaxBet);
+            Set(ui, "introScreen", intro);
             Set(ui, "autoSpinLabel", hud.AutoLabel);
             Set(ui, "paytableButton", hud.Paytable);
             Set(ui, "soundButton", hud.Sound);
@@ -117,6 +147,18 @@ namespace SlotGame.Editor
             SavePrefab(confirm.gameObject, "ConfirmDialog");
             SavePrefab(winPopup.gameObject, "WinPopup");
             SavePrefab(machine.Root, "SlotMachine");
+
+            // Guard: every label must use the game font (a wrong font is the #1 "looks unfinished" bug).
+            int wrongFont = 0;
+            foreach (TMP_Text label in Object.FindObjectsOfType<TMP_Text>(true))
+            {
+                if (label.font != fonts.Font)
+                {
+                    wrongFont++;
+                }
+            }
+
+            Debug.Log($"[SlotProjectBuilder] Labels with the wrong font: {wrongFont}.");
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
@@ -234,6 +276,9 @@ namespace SlotGame.Editor
             public TextMeshProUGUI Message;
             public GameObject FreeSpinsBanner;
             public TextMeshProUGUI FreeSpinsLabel;
+            public Image[] MarqueeBulbs;
+            public WinBanner WinBanner;
+            public RectTransform SparkleArea;
         }
 
         private static MachineParts BuildMachine(Transform canvas, GameData data, FontSet fonts, AnimationSet animations,
@@ -269,6 +314,24 @@ namespace SlotGame.Editor
 
             CreateImage("Frame", root.transform, LoadSprite($"{MachineArtFolder}/slot-machine4.png"),
                 Color.white, 0, 0, 816, 624);
+
+            parts.MarqueeBulbs = BuildMarquee(root.transform);
+
+            // Sparkles twinkle over the reel windows on wins (above the frame, below the lever).
+            GameObject sparkles = Create("Sparkles", root.transform);
+            parts.SparkleArea = sparkles.Rect().Place(ReelWindowX[1], ReelWindowY, 400, 230);
+
+            // Small-win banner that slams in over the reels.
+            GameObject winBannerGo = Create("WinBanner", root.transform);
+            winBannerGo.Rect().Place(ReelWindowX[1], ReelWindowY + 10, 420, 200);
+            winBannerGo.AddComponent<CanvasGroup>();
+            CreateImage("Glow", winBannerGo.transform, LoadSprite($"{EffectsArtFolder}/soft-glow.png"),
+                new Color(0.25f, 0.05f, 0.35f, 0.85f), 0, 0, 460, 230);
+            TextMeshProUGUI winTitle = CreateText("Title", winBannerGo.transform, "WIN!", fonts.Font, fonts.Glow, 72, Gold, 0, 28, 420, 90);
+            TextMeshProUGUI winAmount = CreateText("Amount", winBannerGo.transform, "+20", fonts.Font, fonts.Outline, 44, Cream, 0, -40, 420, 60);
+            parts.WinBanner = winBannerGo.AddComponent<WinBanner>();
+            Set(parts.WinBanner, "titleLabel", winTitle);
+            Set(parts.WinBanner, "amountLabel", winAmount);
 
             // Suspense glow per reel window, above the frame so it reads clearly.
             for (int i = 0; i < parts.Reels.Length; i++)
@@ -322,6 +385,51 @@ namespace SlotGame.Editor
             return parts;
         }
 
+        /// <summary>
+        /// Bulbs around the cabinet outline, ordered as one continuous loop (left pillar upwards,
+        /// over the JACKPOT arch, right pillar downwards) so a chase reads as travelling light.
+        /// Positions are traced from slot-machine4.png in machine-local units.
+        /// </summary>
+        private static Image[] BuildMarquee(Transform machine)
+        {
+            Transform root = Create("Marquee", machine).Rect().Stretch();
+            Sprite bulb = LoadSprite($"{EffectsArtFolder}/bulb.png");
+            var points = new System.Collections.Generic.List<Vector2>();
+
+            const float pillarX = 264f;      // |x| of the side pillars
+            const float pillarBottom = -290f;
+            const float pillarTop = 128f;
+            const int pillarBulbs = 12;
+            for (int i = 0; i < pillarBulbs; i++)
+            {
+                points.Add(new Vector2(-pillarX, Mathf.Lerp(pillarBottom, pillarTop, i / (pillarBulbs - 1f))));
+            }
+
+            // Arch over the JACKPOT sign: half-ellipse from the left pillar top to the right one.
+            const int archBulbs = 21;
+            const float archCentreY = 147f;
+            const float archRadiusX = 258f;
+            const float archRadiusY = 150f;
+            for (int i = 1; i < archBulbs - 1; i++)
+            {
+                float angle = Mathf.PI * (1f - i / (archBulbs - 1f));
+                points.Add(new Vector2(4f + Mathf.Cos(angle) * archRadiusX, archCentreY + Mathf.Sin(angle) * archRadiusY));
+            }
+
+            for (int i = pillarBulbs - 1; i >= 0; i--)
+            {
+                points.Add(new Vector2(pillarX + 8f, Mathf.Lerp(pillarBottom, pillarTop, i / (pillarBulbs - 1f))));
+            }
+
+            var bulbs = new Image[points.Count];
+            for (int i = 0; i < points.Count; i++)
+            {
+                bulbs[i] = CreateImage($"Bulb {i + 1:00}", root, bulb, new Color(1f, 0.93f, 0.62f), points[i].x, points[i].y, 36, 36);
+            }
+
+            return bulbs;
+        }
+
         private static Reel BuildReel(Transform parent, int index, GameData data, ReelSymbol symbolPrefab)
         {
             GameObject reelGo = Create($"Reel {index + 1}", parent);
@@ -360,6 +468,8 @@ namespace SlotGame.Editor
             public Button BetDown;
             public Button Auto;
             public TextMeshProUGUI AutoLabel;
+            public Button MaxBet;
+            public GameObject Root;
             public Button Paytable;
             public Button Sound;
             public TextMeshProUGUI SoundLabel;
@@ -394,12 +504,22 @@ namespace SlotGame.Editor
             hud.SpinAnimator = spin.AddComponent<Animator>();
             hud.SpinAnimator.runtimeAnimatorController = animations.SpinButton;
 
-            hud.Auto = SmallButton(root.transform, "AutoButton", "AUTO", -170, -385, box, fonts, out hud.AutoLabel);
-            hud.Paytable = SmallButton(root.transform, "PaytableButton", "PAYS", 0, -385, box, fonts, out _);
-            hud.Sound = SmallButton(root.transform, "SoundButton", "SOUND", 170, -385, box, fonts, out hud.SoundLabel);
+            // Bottom: a 2x2 grid of secondary buttons.
+            hud.MaxBet = SmallButton(root.transform, "MaxBetButton", "MAX BET", -128, -345, box, fonts, out _);
+            hud.Auto = SmallButton(root.transform, "AutoButton", "AUTO", 128, -345, box, fonts, out hud.AutoLabel);
+            hud.Paytable = SmallButton(root.transform, "PaytableButton", "PAYS", -128, -448, box, fonts, out _);
+            hud.Sound = SmallButton(root.transform, "SoundButton", "SOUND", 128, -448, box, fonts, out hud.SoundLabel);
+
+            // Juicy press feedback on every HUD button.
+            foreach (Button button in root.GetComponentsInChildren<Button>(true))
+            {
+                button.gameObject.AddComponent<ButtonPunch>();
+            }
+
+            hud.Root = root;
 
             hud.SessionInfo = CreateText("SessionInfo", root.transform, "SECURE RNG", fonts.Font, fonts.Outline,
-                20, new Color(1f, 1f, 1f, 0.55f), 0, -490, 480, 30);
+                20, new Color(1f, 1f, 1f, 0.55f), 0, -518, 480, 30);
             return hud;
         }
 
@@ -434,10 +554,10 @@ namespace SlotGame.Editor
             FontSet fonts, out TextMeshProUGUI label)
         {
             GameObject go = Create(name, parent);
-            go.Rect().Place(x, y, 200, 130);
+            go.Rect().Place(x, y, 252, 124);
             Image image = AddImage(go, box, Color.white, true, Image.Type.Sliced, 2f);
             Button button = TintButton(go, image);
-            label = CreateText("Label", go.transform, text, fonts.Font, fonts.Outline, 30, Cream, 0, 0, 150, 90);
+            label = CreateText("Label", go.transform, text, fonts.Font, fonts.Outline, 34, Cream, 0, 0, 200, 80);
             return button;
         }
 
@@ -536,6 +656,46 @@ namespace SlotGame.Editor
             Set(dialog, "yesButton", yesButton);
             Set(dialog, "noButton", noButton);
             return dialog;
+        }
+
+        private static IntroScreen BuildIntroScreen(Transform parent, FontSet fonts)
+        {
+            GameObject root = Create("IntroScreen", parent);
+            root.Rect().Stretch();
+            root.AddComponent<CanvasGroup>();
+            Image dim = AddImage(root, null, new Color(0.04f, 0.01f, 0.1f, 0.9f), true);
+            Button tap = root.AddComponent<Button>();
+            tap.transition = Selectable.Transition.None;
+            tap.targetGraphic = dim;
+
+            CreateImage("Glow", root.transform, LoadSprite($"{EffectsArtFolder}/soft-glow.png"),
+                new Color(1f, 0.75f, 0.25f, 0.45f), 0, 150, 1300, 620);
+
+            GameObject title = Create("Title", root.transform);
+            RectTransform titleRect = title.Rect().Place(0, 200, 1200, 260);
+            CreateText("Lucky7", title.transform, "LUCKY 7", fonts.Font, fonts.Glow, 190, Gold, 0, 30, 1200, 220);
+            CreateText("Slots", title.transform, "S L O T S", fonts.Font, fonts.Outline, 58, Cream, 0, -105, 900, 70);
+
+            string[] symbolFiles = { "slot-symbol1.png", "slot-symbol2.png", "slot-symbol3.png", "slot-symbol4.png" };
+            for (int i = 0; i < symbolFiles.Length; i++)
+            {
+                Image icon = CreateImage($"Symbol {i + 1}", root.transform, LoadSprite($"{SymbolArtFolder}/{symbolFiles[i]}"),
+                    Color.white, -255 + i * 170, -60, 130, 130);
+                icon.preserveAspect = true;
+            }
+
+            CreateText("Rules", root.transform, "MATCH 3 TO WIN   ·   7 IS WILD   ·   3 BELLS = FREE SPINS",
+                fonts.Font, fonts.Outline, 36, Cream, 0, -200, 1500, 60);
+            TextMeshProUGUI prompt = CreateText("Prompt", root.transform, "TAP TO PLAY", fonts.Font, fonts.Glow,
+                78, Gold, 0, -320, 900, 110);
+            CreateText("Hint", root.transform, "SPACE = SPIN   ·   TAP SPIN AGAIN TO QUICK-STOP", fonts.Font, fonts.Outline,
+                26, new Color(1f, 1f, 1f, 0.6f), 0, -420, 1200, 40);
+
+            var intro = root.AddComponent<IntroScreen>();
+            Set(intro, "tapArea", tap);
+            Set(intro, "promptLabel", prompt);
+            Set(intro, "title", titleRect);
+            return intro;
         }
 
         private static WinPopup BuildWinPopup(Transform parent, FontSet fonts, AnimationSet animations)

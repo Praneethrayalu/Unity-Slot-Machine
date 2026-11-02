@@ -34,6 +34,7 @@ namespace SlotGame.UI
         [SerializeField] private TMP_Text spinButtonLabel;
         [SerializeField] private Button betUpButton;
         [SerializeField] private Button betDownButton;
+        [SerializeField] private Button maxBetButton;
         [SerializeField] private Button autoSpinButton;
         [SerializeField] private TMP_Text autoSpinLabel;
         [SerializeField] private Button paytableButton;
@@ -42,6 +43,7 @@ namespace SlotGame.UI
         [SerializeField] private Animator spinButtonAnimator;
 
         [Header("Popups")]
+        [SerializeField] private IntroScreen introScreen;
         [SerializeField] private WinPopup winPopup;
         [SerializeField] private PaytablePanel paytablePanel;
         [SerializeField] private ConfirmDialog confirmDialog;
@@ -59,7 +61,9 @@ namespace SlotGame.UI
             spinButton.onClick.AddListener(OnSpinPressed);
             betUpButton.onClick.AddListener(() => ChangeBet(true));
             betDownButton.onClick.AddListener(() => ChangeBet(false));
+            maxBetButton.onClick.AddListener(OnMaxBetPressed);
             autoSpinButton.onClick.AddListener(OnAutoSpinPressed);
+            introScreen.Dismissed += OnIntroDismissed;
             paytableButton.onClick.AddListener(OnPaytablePressed);
             soundButton.onClick.AddListener(OnSoundPressed);
             winPopup.Dismissed += OnWinPopupDismissed;
@@ -120,6 +124,16 @@ namespace SlotGame.UI
         private void Update()
         {
             // Keyboard shortcut: space spins / quick-stops / skips, like the button.
+            if (introScreen.IsOpen)
+            {
+                if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return))
+                {
+                    introScreen.Dismiss();
+                }
+
+                return;
+            }
+
             if (Input.GetKeyDown(KeyCode.Space) && !AnyModalOpen())
             {
                 OnSpinPressed();
@@ -150,6 +164,18 @@ namespace SlotGame.UI
         {
             bool changed = increase ? controller.IncreaseBet() : controller.DecreaseBet();
             audioManager.Play(changed ? SoundId.BetChange : SoundId.ButtonClick, increase ? 1.1f : 0.9f);
+        }
+
+        private void OnMaxBetPressed()
+        {
+            bool changed = controller.MaxBet();
+            audioManager.Play(changed ? SoundId.BetChange : SoundId.ButtonClick, 1.25f);
+        }
+
+        private void OnIntroDismissed()
+        {
+            // First user gesture: browsers allow audio from here on.
+            audioManager.Play(SoundId.LeverPull);
         }
 
         private void OnAutoSpinPressed()
@@ -327,7 +353,7 @@ namespace SlotGame.UI
 
         private bool AnyModalOpen()
         {
-            return paytablePanel.IsOpen || confirmDialog.IsOpen;
+            return introScreen.IsOpen || paytablePanel.IsOpen || confirmDialog.IsOpen;
         }
 
         private void RefreshControls()
@@ -337,6 +363,8 @@ namespace SlotGame.UI
 
             betUpButton.interactable = !betLocked && controller.Bets.CanIncrease;
             betDownButton.interactable = !betLocked && controller.Bets.CanDecrease;
+            int maxAffordable = controller.Bets.HighestAffordableIndex(controller.Wallet.Balance);
+            maxBetButton.interactable = !betLocked && maxAffordable >= 0 && controller.Bets.Index < maxAffordable;
             paytableButton.interactable = idle && !controller.IsAutoSpinning;
 
             if (idle)
