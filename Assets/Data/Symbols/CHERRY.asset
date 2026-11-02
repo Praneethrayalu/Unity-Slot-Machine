@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1f11fde885ea444e58ca0cd7db2327c7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: 2
+  displayName: CHERRY
+  sprite: {fileID: 21300000, guid: 901fd196f22d23475aa4b6c6cfc108fc, type: 3}
+  blurredSprite: {fileID: 21300000, guid: 764f50b043dca345c8a2872f5a3b9463, type: 3}
+  accentColor: {r: 1, g: 0.3, b: 0.45, a: 1}
